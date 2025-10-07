@@ -1,0 +1,47 @@
+import tensorflow as tf
+import numpy as np
+
+# XOR dataset
+X = np.array([[0,0],[0,1],[1,0],[1,1]], dtype=np.float32)
+y = np.array([[0],[1],[1],[0]], dtype=np.float32)
+
+# Define model variables
+W1 = tf.Variable(tf.random.normal([2, 4]))
+b1 = tf.Variable(tf.zeros([4]))
+W2 = tf.Variable(tf.random.normal([4, 1]))
+b2 = tf.Variable(tf.zeros([1]))
+
+# Learning rate
+lr = 0.1
+optimizer = tf.optimizers.SGD(lr)
+
+# Sigmoid function
+def sigmoid(x):
+    return 1 / (1 + tf.exp(-x))
+
+# Forward pass
+def forward(X):
+    hidden = tf.nn.relu(tf.matmul(X, W1) + b1)
+    output = sigmoid(tf.matmul(hidden, W2) + b2)
+    return output
+
+# Binary cross-entropy loss
+def loss_fn(y_pred, y_true):
+    return -tf.reduce_mean(y_true*tf.math.log(y_pred + 1e-7) + (1 - y_true)*tf.math.log(1 - y_pred + 1e-7))
+
+# Training loop
+for epoch in range(5000):
+    with tf.GradientTape() as tape:
+        y_pred = forward(X)
+        loss = loss_fn(y_pred, y)
+    grads = tape.gradient(loss, [W1, b1, W2, b2])
+    optimizer.apply_gradients(zip(grads, [W1, b1, W2, b2]))
+    if (epoch+1) % 1000 == 0:
+        print(f"Epoch {epoch+1}, Loss: {loss.numpy():.4f}")
+
+# Predictions
+y_pred = forward(X).numpy()
+pred_classes = (y_pred > 0.5).astype(int)
+print("\nPredicted outputs:")
+for i in range(len(X)):
+    print(f"Input: {X[i]} -> Predicted: {pred_classes[i][0]}")
