@@ -1,0 +1,33 @@
+import numpy as np
+
+# Ratings matrix (rows = users, cols = movies, values = rating)
+ratings = np.array([
+    [5, 4, 0, 0, 3],
+    [4, 0, 0, 2, 4],
+    [0, 3, 4, 0, 5],
+    [2, 0, 5, 4, 0]
+])
+
+num_users, num_movies = ratings.shape
+hidden_units = 3
+np.random.seed(42)
+
+# Random weights
+W = np.random.normal(0, 0.1, (num_movies, hidden_units))
+
+# Simple RBM training (1 step contrastive divergence)
+def train_RBM(ratings, W, epochs=1000, lr=0.01):
+    for _ in range(epochs):
+        v0 = ratings
+        h0 = np.where(np.dot(v0, W) > 0, 1, 0)
+        v1 = np.dot(h0, W.T)
+        h1 = np.where(np.dot(v1, W) > 0, 1, 0)
+        W += lr * (np.dot(v0.T, h0) - np.dot(v1.T, h1))
+    return W
+
+W = train_RBM(ratings, W)
+
+# Recommend for user 0
+user0 = ratings[0]
+predicted_ratings = np.dot(np.where(np.dot(user0, W) > 0, 1, 0), W.T)
+print("Predicted ratings for user 0:", predicted_ratings)
