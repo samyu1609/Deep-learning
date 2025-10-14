@@ -1,0 +1,73 @@
+# requirements:
+# pip install tensorflow==2.* numpy
+# (if on Colab or local with TF installed)
+
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, LSTM, Dense
+
+# --- sample tiny corpus (replace with e-book text / your dataset) ---
+corpus = [
+    "the quick brown fox jumps over the lazy dog",
+    "the quick brown fox likes to jump",
+    "the reader wants the next sentence",
+    "the e book seeks to autocomplete sentences for the reader",
+]
+
+# Tokenize
+tokenizer = Tokenizer()
+tokenizer.fit_on_texts(corpus)
+total_words = len(tokenizer.word_index) + 1
+
+# Create input sequences (N-gram sequences)
+input_sequences = []
+for line in corpus:
+    token_list = tokenizer.texts_to_sequences([line])[0]
+    for i in range(1, len(token_list)):
+        n_gram_seq = token_list[:i+1]
+        input_sequences.append(n_gram_seq)
+
+# Pad sequences
+max_seq_len = max([len(x) for x in input_sequences])
+input_sequences = np.array(pad_sequences(input_sequences, maxlen=max_seq_len, padding='pre'))
+
+# Split into predictors and label
+X = input_sequences[:, :-1]
+y = input_sequences[:, -1]
+y = tf.keras.utils.to_categorical(y, num_classes=total_words)
+
+# Build model
+model = Sequential()
+model.add(Embedding(input_dim=total_words, output_dim=50, input_length=max_seq_len-1))
+model.add(LSTM(150))
+model.add(Dense(total_words, activation='softmax'))
+
+model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+model.summary()
+
+# Train (few epochs for demo)
+model.fit(X, y, epochs=200, verbose=0)
+
+# Prediction helper
+def complete_text(seed_text, next_words=10):
+    for _ in range(next_words):
+        token_list = tokenizer.texts_to_sequences([seed_text])[0]
+        token_list = pad_sequences([token_list], maxlen=max_seq_len-1, padding='pre')
+        predicted = model.predict(token_list, verbose=0)
+        predicted_index = np.argmax(predicted, axis=-1)[0]
+        output_word = ""
+        for word, index in tokenizer.word_index.items():
+            if index == predicted_index:
+                output_word = word
+                break
+        if output_word == "":
+            break
+        seed_text += " " + output_word
+    return seed_text
+
+# Example
+print(complete_text("the quick", next_words=5))
+print(complete_text("the reader", next_words=6))
