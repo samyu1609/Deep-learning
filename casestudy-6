@@ -1,0 +1,26 @@
+import torch
+import soundfile as sf
+from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
+
+# load once (replace model name with desired huggingface model)
+MODEL = "facebook/wav2vec2-base-960h"
+
+processor = Wav2Vec2Processor.from_pretrained(MODEL)
+model = Wav2Vec2ForCTC.from_pretrained(MODEL).eval()
+
+def transcribe_wav(path):
+    speech, sr = sf.read(path)
+    if sr != 16000:
+        # resample to 16k (use librosa if installed)
+        import librosa
+        speech = librosa.resample(speech, orig_sr=sr, target_sr=16000)
+        sr = 16000
+    input_values = processor(speech, sampling_rate=sr, return_tensors="pt").input_values
+    with torch.no_grad():
+        logits = model(input_values).logits
+    predicted_ids = torch.argmax(logits, dim=-1)
+    transcription = processor.batch_decode(predicted_ids)[0]
+    return transcription.lower()
+
+if __name__ == "__main__":
+    print("Transcription:", transcribe_wav("cmd.wav"))
